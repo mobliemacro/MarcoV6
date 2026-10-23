@@ -1,625 +1,179 @@
---============================================================
---  LOADING SCREEN  |  Executor Script (no StarterGui needed)
---  Paste into your executor and run — works in any game.
--- ============================================================
+local Players = game:GetService("Players")
+local ContextActionService = game:GetService("ContextActionService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local camera = workspace.CurrentCamera
 
-loadstring(game:HttpGet('https://api.rubis.app/v2/scrap/Mu3bJmmk3abFItQZ/raw'))()
-loadstring(game:HttpGet("https://scriptblox.com/raw/Universal-Script-Snow-Hub-V1-231395"))()
+local player = Players.LocalPlayer
 
-local CONFIG = {
-	GameTitle       = "PUT PIN TO LOAD FASTFLAGS MADE BY TUFF THE ONLY GOAT",
-	Subtitle        = "Loading, please wait...",
-	FadeInDuration  = 0.6,
-	FadeOutDuration = 1.0,
-	DisplayTime     = 120,      -- how long to show before fading out
-	AccentColor     = Color3.fromHex("#00E5FF"),
-	BackgroundColor = Color3.fromHex("#04080F"),
-	TextColor       = Color3.fromHex("#E8F4F8"),
-	BarColor        = Color3.fromHex("#00E5FF"),
-	BarTrackColor   = Color3.fromHex("#0D1F2D"),
-	Steps = {                   -- fake loading steps shown during load
-		"Initializing modules...",
-		"Connecting to server...",
-		"Bypassing anti-cheat...",
-		"Injecting hooks...",
-		"Loading core library...",
-		"Fetching remote configs...",
-		"Patching memory addresses...",
-		"Loading ESP module...",
-		"Loading aimbot module...",
-		"Loading speed module...",
-		"Syncing player data...",
-		"Verifying script integrity...",
-		"Loading UI components...",
-		"Applying visual patches...",
-		"Finalizing injection...",
-		"Cleaning up traces...",
-		"Almost ready...",
-		"Done.",
-	},
-}
+-- timings
+local speedDelay = 0.007
+local comboSpeed = 0.004
+local comboHold = 0.03 -- longer hold for combo
+local rpgSpeed = speedDelay * 2.5
+local snowballSlow = 0.04
 
--- ============================================================
-local Players       = game:GetService("Players")
-local TweenService  = game:GetService("TweenService")
-local RunService    = game:GetService("RunService")
+task.wait(1)
 
-local player    = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local viewport = camera.ViewportSize
+local CLICK_X = viewport.X / 2
+local CLICK_Y = viewport.Y / 2 - 15
+local LOCK_X = viewport.X - 170
+local LOCK_Y = viewport.Y - 100
 
--- Remove old instance if re-run
-if playerGui:FindFirstChild("ExecLoadingScreen") then
-	playerGui:FindFirstChild("ExecLoadingScreen"):Destroy()
+-------------------------------------------------
+-- Crosshair
+-------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local crossX = CLICK_X
+local crossY = CLICK_Y - 45
+
+local hLine = Instance.new("Frame")
+hLine.Size = UDim2.new(0, 24, 0, 3)
+hLine.Position = UDim2.new(0, crossX-12, 0, crossY-1)
+hLine.BackgroundColor3 = Color3.new(1,1,1)
+hLine.BorderSizePixel = 0
+hLine.Parent = gui
+
+local vLine = Instance.new("Frame")
+vLine.Size = UDim2.new(0, 3, 0, 24)
+vLine.Position = UDim2.new(0, crossX-1, 0, crossY-12)
+vLine.BackgroundColor3 = Color3.new(1,1,1)
+vLine.BorderSizePixel = 0
+vLine.Parent = gui
+
+-------------------------------------------------
+-- Helpers
+-------------------------------------------------
+
+local function click()
+	VirtualInputManager:SendMouseButtonEvent(CLICK_X, CLICK_Y, 0, true, game, 0)
+	task.wait(speedDelay)
+	VirtualInputManager:SendMouseButtonEvent(CLICK_X, CLICK_Y, 0, false, game, 0)
 end
 
--- ============================================================
--- BUILD GUI
--- ============================================================
-
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name            = "ExecLoadingScreen"
-screenGui.ResetOnSpawn    = false
-screenGui.IgnoreGuiInset  = true
-screenGui.DisplayOrder    = 9999
-screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
-
--- Use pcall to protect against executor restrictions
-local ok = pcall(function()
-	screenGui.Parent = playerGui
-end)
-if not ok then
-	screenGui.Parent = game:GetService("CoreGui")
+local function pressAndClick(key, speed)
+	VirtualInputManager:SendKeyEvent(true, key, false, game)
+	task.wait(speed)
+	VirtualInputManager:SendKeyEvent(false, key, false, game)
+	click()
 end
 
--- Root
-local root = Instance.new("Frame")
-root.Size                = UDim2.fromScale(1, 1)
-root.BackgroundColor3    = CONFIG.BackgroundColor
-root.BackgroundTransparency = 1
-root.BorderSizePixel     = 0
-root.Parent              = screenGui
-
--- Corner brackets
-local function addCorner(posX, posY, aX, aY)
-	local v = Instance.new("Frame")
-	v.Size               = UDim2.new(0, 2, 0, 36)
-	v.Position           = UDim2.new(posX, 0, posY, 0)
-	v.AnchorPoint        = Vector2.new(aX, aY)
-	v.BackgroundColor3   = CONFIG.AccentColor
-	v.BackgroundTransparency = 0.2
-	v.BorderSizePixel    = 0
-	v.ZIndex             = 4
-	v.Parent             = root
-
-	local h = Instance.new("Frame")
-	h.Size               = UDim2.new(0, 36, 0, 2)
-	h.Position           = UDim2.new(posX, 0, posY, 0)
-	h.AnchorPoint        = Vector2.new(aX, aY)
-	h.BackgroundColor3   = CONFIG.AccentColor
-	h.BackgroundTransparency = 0.2
-	h.BorderSizePixel    = 0
-	h.ZIndex             = 4
-	h.Parent             = root
+local function comboPress(key)
+	VirtualInputManager:SendKeyEvent(true, key, false, game)
+	task.wait(comboHold)
+	VirtualInputManager:SendKeyEvent(false, key, false, game)
+	click()
 end
-addCorner(0.08, 0.1,  0, 0)
-addCorner(0.92, 0.1,  1, 0)
-addCorner(0.08, 0.9,  0, 1)
-addCorner(0.92, 0.9,  1, 1)
 
--- Title
-local title = Instance.new("TextLabel")
-title.Size               = UDim2.new(0.8, 0, 0, 70)
-title.Position           = UDim2.new(0.5, 0, 0.28, 0)
-title.AnchorPoint        = Vector2.new(0.5, 1)
-title.BackgroundTransparency = 1
-title.Text               = CONFIG.GameTitle
-title.TextColor3         = CONFIG.TextColor
-title.Font               = Enum.Font.GothamBold
-title.TextScaled         = true
-title.TextTransparency   = 1
-title.ZIndex             = 5
-title.Parent             = root
+-------------------------------------------------
+-- Snowballs
+-------------------------------------------------
 
-local titleStroke = Instance.new("UIStroke")
-titleStroke.Color        = CONFIG.AccentColor
-titleStroke.Thickness    = 1.5
-titleStroke.Transparency = 0.4
-titleStroke.Parent       = title
-
--- Subtitle
-local subtitle = Instance.new("TextLabel")
-subtitle.Size               = UDim2.new(0.5, 0, 0, 20)
-subtitle.Position           = UDim2.new(0.5, 0, 0.30, 0)
-subtitle.AnchorPoint        = Vector2.new(0.5, 0)
-subtitle.BackgroundTransparency = 1
-subtitle.Text               = CONFIG.Subtitle
-subtitle.TextColor3         = CONFIG.AccentColor
-subtitle.Font               = Enum.Font.GothamMedium
-subtitle.TextSize           = 14
-subtitle.TextTransparency   = 1
-subtitle.ZIndex             = 5
-subtitle.Parent             = root
-
--- Separator
-local sep = Instance.new("Frame")
-sep.Size               = UDim2.new(0, 0, 0, 1)
-sep.Position           = UDim2.new(0.5, 0, 0.38, 0)
-sep.AnchorPoint        = Vector2.new(0.5, 0)
-sep.BackgroundColor3   = CONFIG.AccentColor
-sep.BackgroundTransparency = 0.4
-sep.BorderSizePixel    = 0
-sep.ZIndex             = 5
-sep.Parent             = root
-
--- Step label
-local stepLabel = Instance.new("TextLabel")
-stepLabel.Size               = UDim2.new(0.6, 0, 0, 26)
-stepLabel.Position           = UDim2.new(0.5, 0, 0.43, 0)
-stepLabel.AnchorPoint        = Vector2.new(0.5, 0)
-stepLabel.BackgroundTransparency = 1
-stepLabel.Text               = CONFIG.Steps[1]
-stepLabel.TextColor3         = CONFIG.TextColor
-stepLabel.TextTransparency   = 0.4
-stepLabel.Font               = Enum.Font.Gotham
-stepLabel.TextSize           = 14
-stepLabel.ZIndex             = 5
-stepLabel.Parent             = root
-
--- Bar track
-local barTrack = Instance.new("Frame")
-barTrack.Size               = UDim2.new(0.55, 0, 0, 4)
-barTrack.Position           = UDim2.new(0.5, 0, 0.74, 0)
-barTrack.AnchorPoint        = Vector2.new(0.5, 0.5)
-barTrack.BackgroundColor3   = CONFIG.BarTrackColor
-barTrack.BorderSizePixel    = 0
-barTrack.ZIndex             = 5
-barTrack.Parent             = root
-Instance.new("UICorner", barTrack).CornerRadius = UDim.new(1, 0)
-
--- Bar fill
-local barFill = Instance.new("Frame")
-barFill.Size             = UDim2.new(0, 0, 1, 0)
-barFill.BackgroundColor3 = CONFIG.BarColor
-barFill.BorderSizePixel  = 0
-barFill.ZIndex           = 6
-barFill.Parent           = barTrack
-Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
-
--- Bar glow
-local glow = Instance.new("Frame")
-glow.Size               = UDim2.new(1, 20, 4, 0)
-glow.Position           = UDim2.new(0, -10, -1.5, 0)
-glow.BackgroundColor3   = CONFIG.BarColor
-glow.BackgroundTransparency = 0.72
-glow.BorderSizePixel    = 0
-glow.ZIndex             = 5
-glow.Parent             = barFill
-Instance.new("UICorner", glow).CornerRadius = UDim.new(1, 0)
-
--- Percent label
-local percentLabel = Instance.new("TextLabel")
-percentLabel.Size               = UDim2.new(0.55, 0, 0, 22)
-percentLabel.Position           = UDim2.new(0.5, 0, 0.77, 0)
-percentLabel.AnchorPoint        = Vector2.new(0.5, 0)
-percentLabel.BackgroundTransparency = 1
-percentLabel.Text               = "0%"
-percentLabel.TextColor3         = CONFIG.AccentColor
-percentLabel.Font               = Enum.Font.GothamMedium
-percentLabel.TextSize           = 13
-percentLabel.TextXAlignment     = Enum.TextXAlignment.Right
-percentLabel.ZIndex             = 5
-percentLabel.Parent             = root
-
--- Status label (left side of bar)
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size               = UDim2.new(0.55, 0, 0, 22)
-statusLabel.Position           = UDim2.new(0.5, 0, 0.77, 0)
-statusLabel.AnchorPoint        = Vector2.new(0.5, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text               = "LOADING"
-statusLabel.TextColor3         = CONFIG.TextColor
-statusLabel.TextTransparency   = 0.5
-statusLabel.Font               = Enum.Font.GothamMedium
-statusLabel.TextSize           = 13
-statusLabel.TextXAlignment     = Enum.TextXAlignment.Left
-statusLabel.ZIndex             = 5
-statusLabel.Parent             = root
-
--- ============================================================
--- ANIMATE IN
--- ============================================================
-
-TweenService:Create(root, TweenInfo.new(CONFIG.FadeInDuration, Enum.EasingStyle.Quad), {
-	BackgroundTransparency = 0
-}):Play()
-
-task.delay(0.25, function()
-	TweenService:Create(title, TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		TextTransparency = 0
-	}):Play()
-	TweenService:Create(subtitle, TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		TextTransparency = 0
-	}):Play()
-end)
-
-task.delay(0.5, function()
-	TweenService:Create(sep, TweenInfo.new(0.6, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0.55, 0, 0, 1)
-	}):Play()
-end)
-
--- ============================================================
--- FAKE LOADING STEPS  (timed across DisplayTime)
--- ============================================================
-
-local steps      = CONFIG.Steps
-local stepCount  = #steps
-local timePerStep = CONFIG.DisplayTime / stepCount
-local dotConn
-
--- Dot pulse
-local dotTick = 0
-dotConn = RunService.Heartbeat:Connect(function()
-	dotTick += 1
-	if dotTick % 28 == 0 then
-		local d = string.rep(".", (math.floor(dotTick / 28) % 4))
-		statusLabel.Text = "LOADING" .. d
+ContextActionService:BindAction("Snowballs", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		pressAndClick(Enum.KeyCode.Eight, snowballSlow)
+		pressAndClick(Enum.KeyCode.Nine, snowballSlow)
+		pressAndClick(Enum.KeyCode.Two, snowballSlow)
 	end
-end)
+end, false, Enum.KeyCode.ButtonR3)
 
-task.spawn(function()
-	for i, step in ipairs(steps) do
-		local progress = i / stepCount
+-------------------------------------------------
+-- Combo
+-------------------------------------------------
 
-		-- Fade step label
-		TweenService:Create(stepLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
-		task.wait(0.25)
-		stepLabel.Text = step
-		TweenService:Create(stepLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {TextTransparency = 0.4}):Play()
+local holdingL3 = false
 
-		-- Advance bar
-		TweenService:Create(barFill, TweenInfo.new(timePerStep * 0.85, Enum.EasingStyle.Quad), {
-			Size = UDim2.new(math.min(progress, 0.95), 0, 1, 0)
-		}):Play()
-		percentLabel.Text = math.floor(math.min(progress, 0.95) * 100) .. "%"
+ContextActionService:BindAction("Combo", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		holdingL3 = true
 
-		task.wait(timePerStep)
-	end
+		comboPress(Enum.KeyCode.Four)
+		comboPress(Enum.KeyCode.Five)
+		comboPress(Enum.KeyCode.Six)
+		comboPress(Enum.KeyCode.Seven)
 
-	-- Finish bar
-	TweenService:Create(barFill, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {
-		Size = UDim2.new(1, 0, 1, 0)
-	}):Play()
-	percentLabel.Text = "100%"
-	statusLabel.Text  = "DONE"
-	task.wait(0.4)
+		click()
 
-	-- ============================================================
-	-- FADE OUT
-	-- ============================================================
-	dotConn:Disconnect()
-
-	local fadeInfo = TweenInfo.new(CONFIG.FadeOutDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-
-	TweenService:Create(root, fadeInfo, {BackgroundTransparency = 1}):Play()
-
-	for _, desc in ipairs(root:GetDescendants()) do
-		if desc:IsA("TextLabel") then
-			TweenService:Create(desc, fadeInfo, {TextTransparency = 1}):Play()
-		elseif desc:IsA("Frame") then
-			TweenService:Create(desc, fadeInfo, {BackgroundTransparency = 1}):Play()
+		if not holdingL3 then
+			comboPress(Enum.KeyCode.Two)
 		end
+
+	elseif state == Enum.UserInputState.End then
+		holdingL3 = false
 	end
+end, false, Enum.KeyCode.ButtonL3)
 
-	task.wait(CONFIG.FadeOutDuration + 0.15)
-	screenGui:Destroy()
-end)
+-------------------------------------------------
+-- RPG
+-------------------------------------------------
 
-local CONFIG = {
-	GameTitle       = "PUT PIN TO LOAD FASTFLAGS MADE BY TUFF THE ONLY GOAT",
-	Subtitle        = "Loading, please wait...",
-	FadeInDuration  = 0.6,
-	FadeOutDuration = 1.0,
-	DisplayTime     = 120,      -- how long to show before fading out
-	AccentColor     = Color3.fromHex("#00E5FF"),
-	BackgroundColor = Color3.fromHex("#04080F"),
-	TextColor       = Color3.fromHex("#E8F4F8"),
-	BarColor        = Color3.fromHex("#00E5FF"),
-	BarTrackColor   = Color3.fromHex("#0D1F2D"),
-	Steps = {                   -- fake loading steps shown during load
-		"Initializing modules...",
-		"Connecting to server...",
-		"Bypassing anti-cheat...",
-		"Injecting hooks...",
-		"Loading core library...",
-		"Fetching remote configs...",
-		"Patching memory addresses...",
-		"Loading ESP module...",
-		"Loading aimbot module...",
-		"Loading speed module...",
-		"Syncing player data...",
-		"Verifying script integrity...",
-		"Loading UI components...",
-		"Applying visual patches...",
-		"Finalizing injection...",
-		"Cleaning up traces...",
-		"Almost ready...",
-		"Done.",
-	},
-}
-
--- ============================================================
-local Players       = game:GetService("Players")
-local TweenService  = game:GetService("TweenService")
-local RunService    = game:GetService("RunService")
-
-local player    = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
--- Remove old instance if re-run
-if playerGui:FindFirstChild("ExecLoadingScreen") then
-	playerGui:FindFirstChild("ExecLoadingScreen"):Destroy()
-end
-
--- ============================================================
--- BUILD GUI
--- ============================================================
-
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name            = "ExecLoadingScreen"
-screenGui.ResetOnSpawn    = false
-screenGui.IgnoreGuiInset  = true
-screenGui.DisplayOrder    = 9999
-screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
-
--- Use pcall to protect against executor restrictions
-local ok = pcall(function()
-	screenGui.Parent = playerGui
-end)
-if not ok then
-	screenGui.Parent = game:GetService("CoreGui")
-end
-
--- Root
-local root = Instance.new("Frame")
-root.Size                = UDim2.fromScale(1, 1)
-root.BackgroundColor3    = CONFIG.BackgroundColor
-root.BackgroundTransparency = 1
-root.BorderSizePixel     = 0
-root.Parent              = screenGui
-
--- Corner brackets
-local function addCorner(posX, posY, aX, aY)
-	local v = Instance.new("Frame")
-	v.Size               = UDim2.new(0, 2, 0, 36)
-	v.Position           = UDim2.new(posX, 0, posY, 0)
-	v.AnchorPoint        = Vector2.new(aX, aY)
-	v.BackgroundColor3   = CONFIG.AccentColor
-	v.BackgroundTransparency = 0.2
-	v.BorderSizePixel    = 0
-	v.ZIndex             = 4
-	v.Parent             = root
-
-	local h = Instance.new("Frame")
-	h.Size               = UDim2.new(0, 36, 0, 2)
-	h.Position           = UDim2.new(posX, 0, posY, 0)
-	h.AnchorPoint        = Vector2.new(aX, aY)
-	h.BackgroundColor3   = CONFIG.AccentColor
-	h.BackgroundTransparency = 0.2
-	h.BorderSizePixel    = 0
-	h.ZIndex             = 4
-	h.Parent             = root
-end
-addCorner(0.08, 0.1,  0, 0)
-addCorner(0.92, 0.1,  1, 0)
-addCorner(0.08, 0.9,  0, 1)
-addCorner(0.92, 0.9,  1, 1)
-
--- Title
-local title = Instance.new("TextLabel")
-title.Size               = UDim2.new(0.8, 0, 0, 70)
-title.Position           = UDim2.new(0.5, 0, 0.28, 0)
-title.AnchorPoint        = Vector2.new(0.5, 1)
-title.BackgroundTransparency = 1
-title.Text               = CONFIG.GameTitle
-title.TextColor3         = CONFIG.TextColor
-title.Font               = Enum.Font.GothamBold
-title.TextScaled         = true
-title.TextTransparency   = 1
-title.ZIndex             = 5
-title.Parent             = root
-
-local titleStroke = Instance.new("UIStroke")
-titleStroke.Color        = CONFIG.AccentColor
-titleStroke.Thickness    = 1.5
-titleStroke.Transparency = 0.4
-titleStroke.Parent       = title
-
--- Subtitle
-local subtitle = Instance.new("TextLabel")
-subtitle.Size               = UDim2.new(0.5, 0, 0, 20)
-subtitle.Position           = UDim2.new(0.5, 0, 0.30, 0)
-subtitle.AnchorPoint        = Vector2.new(0.5, 0)
-subtitle.BackgroundTransparency = 1
-subtitle.Text               = CONFIG.Subtitle
-subtitle.TextColor3         = CONFIG.AccentColor
-subtitle.Font               = Enum.Font.GothamMedium
-subtitle.TextSize           = 14
-subtitle.TextTransparency   = 1
-subtitle.ZIndex             = 5
-subtitle.Parent             = root
-
--- Separator
-local sep = Instance.new("Frame")
-sep.Size               = UDim2.new(0, 0, 0, 1)
-sep.Position           = UDim2.new(0.5, 0, 0.38, 0)
-sep.AnchorPoint        = Vector2.new(0.5, 0)
-sep.BackgroundColor3   = CONFIG.AccentColor
-sep.BackgroundTransparency = 0.4
-sep.BorderSizePixel    = 0
-sep.ZIndex             = 5
-sep.Parent             = root
-
--- Step label
-local stepLabel = Instance.new("TextLabel")
-stepLabel.Size               = UDim2.new(0.6, 0, 0, 26)
-stepLabel.Position           = UDim2.new(0.5, 0, 0.43, 0)
-stepLabel.AnchorPoint        = Vector2.new(0.5, 0)
-stepLabel.BackgroundTransparency = 1
-stepLabel.Text               = CONFIG.Steps[1]
-stepLabel.TextColor3         = CONFIG.TextColor
-stepLabel.TextTransparency   = 0.4
-stepLabel.Font               = Enum.Font.Gotham
-stepLabel.TextSize           = 14
-stepLabel.ZIndex             = 5
-stepLabel.Parent             = root
-
--- Bar track
-local barTrack = Instance.new("Frame")
-barTrack.Size               = UDim2.new(0.55, 0, 0, 4)
-barTrack.Position           = UDim2.new(0.5, 0, 0.74, 0)
-barTrack.AnchorPoint        = Vector2.new(0.5, 0.5)
-barTrack.BackgroundColor3   = CONFIG.BarTrackColor
-barTrack.BorderSizePixel    = 0
-barTrack.ZIndex             = 5
-barTrack.Parent             = root
-Instance.new("UICorner", barTrack).CornerRadius = UDim.new(1, 0)
-
--- Bar fill
-local barFill = Instance.new("Frame")
-barFill.Size             = UDim2.new(0, 0, 1, 0)
-barFill.BackgroundColor3 = CONFIG.BarColor
-barFill.BorderSizePixel  = 0
-barFill.ZIndex           = 6
-barFill.Parent           = barTrack
-Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
-
--- Bar glow
-local glow = Instance.new("Frame")
-glow.Size               = UDim2.new(1, 20, 4, 0)
-glow.Position           = UDim2.new(0, -10, -1.5, 0)
-glow.BackgroundColor3   = CONFIG.BarColor
-glow.BackgroundTransparency = 0.72
-glow.BorderSizePixel    = 0
-glow.ZIndex             = 5
-glow.Parent             = barFill
-Instance.new("UICorner", glow).CornerRadius = UDim.new(1, 0)
-
--- Percent label
-local percentLabel = Instance.new("TextLabel")
-percentLabel.Size               = UDim2.new(0.55, 0, 0, 22)
-percentLabel.Position           = UDim2.new(0.5, 0, 0.77, 0)
-percentLabel.AnchorPoint        = Vector2.new(0.5, 0)
-percentLabel.BackgroundTransparency = 1
-percentLabel.Text               = "0%"
-percentLabel.TextColor3         = CONFIG.AccentColor
-percentLabel.Font               = Enum.Font.GothamMedium
-percentLabel.TextSize           = 13
-percentLabel.TextXAlignment     = Enum.TextXAlignment.Right
-percentLabel.ZIndex             = 5
-percentLabel.Parent             = root
-
--- Status label (left side of bar)
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size               = UDim2.new(0.55, 0, 0, 22)
-statusLabel.Position           = UDim2.new(0.5, 0, 0.77, 0)
-statusLabel.AnchorPoint        = Vector2.new(0.5, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text               = "LOADING"
-statusLabel.TextColor3         = CONFIG.TextColor
-statusLabel.TextTransparency   = 0.5
-statusLabel.Font               = Enum.Font.GothamMedium
-statusLabel.TextSize           = 13
-statusLabel.TextXAlignment     = Enum.TextXAlignment.Left
-statusLabel.ZIndex             = 5
-statusLabel.Parent             = root
-
--- ============================================================
--- ANIMATE IN
--- ============================================================
-
-TweenService:Create(root, TweenInfo.new(CONFIG.FadeInDuration, Enum.EasingStyle.Quad), {
-	BackgroundTransparency = 0
-}):Play()
-
-task.delay(0.25, function()
-	TweenService:Create(title, TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		TextTransparency = 0
-	}):Play()
-	TweenService:Create(subtitle, TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		TextTransparency = 0
-	}):Play()
-end)
-
-task.delay(0.5, function()
-	TweenService:Create(sep, TweenInfo.new(0.6, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0.55, 0, 0, 1)
-	}):Play()
-end)
-
--- ============================================================
--- FAKE LOADING STEPS  (timed across DisplayTime)
--- ============================================================
-
-local steps      = CONFIG.Steps
-local stepCount  = #steps
-local timePerStep = CONFIG.DisplayTime / stepCount
-local dotConn
-
--- Dot pulse
-local dotTick = 0
-dotConn = RunService.Heartbeat:Connect(function()
-	dotTick += 1
-	if dotTick % 28 == 0 then
-		local d = string.rep(".", (math.floor(dotTick / 28) % 4))
-		statusLabel.Text = "LOADING" .. d
+ContextActionService:BindAction("RPG", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		pressAndClick(Enum.KeyCode.One, rpgSpeed)
+		pressAndClick(Enum.KeyCode.R, rpgSpeed)
+		pressAndClick(Enum.KeyCode.Two, rpgSpeed)
 	end
-end)
+end, false, Enum.KeyCode.ButtonL1)
 
-task.spawn(function()
-	for i, step in ipairs(steps) do
-		local progress = i / stepCount
+-------------------------------------------------
+-- Grenade
+-------------------------------------------------
 
-		-- Fade step label
-		TweenService:Create(stepLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
-		task.wait(0.25)
-		stepLabel.Text = step
-		TweenService:Create(stepLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {TextTransparency = 0.4}):Play()
-
-		-- Advance bar
-		TweenService:Create(barFill, TweenInfo.new(timePerStep * 0.85, Enum.EasingStyle.Quad), {
-			Size = UDim2.new(math.min(progress, 0.95), 0, 1, 0)
-		}):Play()
-		percentLabel.Text = math.floor(math.min(progress, 0.95) * 100) .. "%"
-
-		task.wait(timePerStep)
+ContextActionService:BindAction("Grenade", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		pressAndClick(Enum.KeyCode.Three, speedDelay)
+		pressAndClick(Enum.KeyCode.Two, speedDelay)
 	end
+end, false, Enum.KeyCode.ButtonR1)
 
-	-- Finish bar
-	TweenService:Create(barFill, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {
-		Size = UDim2.new(1, 0, 1, 0)
-	}):Play()
-	percentLabel.Text = "100%"
-	statusLabel.Text  = "DONE"
-	task.wait(0.4)
+-------------------------------------------------
+-- Taser
+-------------------------------------------------
 
-	-- ============================================================
-	-- FADE OUT
-	-- ============================================================
-	dotConn:Disconnect()
+ContextActionService:BindAction("Taser", function(_, state)
+	if state == Enum.UserInputState.Begin then
 
-	local fadeInfo = TweenInfo.new(CONFIG.FadeOutDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Zero, false, game)
+		task.wait(speedDelay)
+		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Zero, false, game)
+		click()
 
-	TweenService:Create(root, fadeInfo, {BackgroundTransparency = 1}):Play()
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Two, false, game)
+		task.wait(speedDelay)
+		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Two, false, game)
+		click()
 
-	for _, desc in ipairs(root:GetDescendants()) do
-		if desc:IsA("TextLabel") then
-			TweenService:Create(desc, fadeInfo, {TextTransparency = 1}):Play()
-		elseif desc:IsA("Frame") then
-			TweenService:Create(desc, fadeInfo, {BackgroundTransparency = 1}):Play()
-		end
 	end
+end, false, Enum.KeyCode.DPadRight)
 
-	task.wait(CONFIG.FadeOutDuration + 0.15)
-	screenGui:Destroy()
-end)
+-------------------------------------------------
+-- Off
+-------------------------------------------------
+
+ContextActionService:BindAction("Off", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		pressAndClick(Enum.KeyCode.Two, speedDelay)
+	end
+end, false, Enum.KeyCode.DPadDown)
+
+-------------------------------------------------
+-- Lock
+-------------------------------------------------
+
+ContextActionService:BindAction("Lock", function(_, state)
+	if state == Enum.UserInputState.Begin then
+
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.G, false, game)
+		task.wait(speedDelay)
+		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.G, false, game)
+
+		VirtualInputManager:SendMouseButtonEvent(LOCK_X, LOCK_Y, 0, true, game, 0)
+		task.wait(speedDelay)
+		VirtualInputManager:SendMouseButtonEvent(LOCK_X, LOCK_Y, 0, false, game, 0)
+
+	end
+end, false, Enum.KeyCode.ButtonY)
